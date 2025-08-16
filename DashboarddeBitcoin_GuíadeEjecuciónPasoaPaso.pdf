@@ -1,0 +1,342 @@
+Guia Paso a Paso
+Tu rol será el de Arquitecto de Sistemas. No necesitas ser un programador experto
+en todo, sino saber qué piezas conectar y cómo. Tu principal herramienta, además de
+la IA, será la terminal y tu editor de código.
+Metodología:
+1. Construye local, despliega en la nube: Siempre haremos que las cosas
+funcionen primero en tu MacBook. Una vez que un script o una app funciona
+localmente, la subimos al servidor o a Vercel.
+2. Git es tu red de seguridad: Usaremos Git para todo. Cada vez que completes un
+pequeño paso, harás un commit. Si algo se rompe, siempre podrás volver a una
+versión que funcionaba.
+3. Un paso a la vez: No avances al siguiente paso hasta que el actual esté 100%
+funcional.
+Fase 0: Preparación del Campo de Batalla (Configuración Inicial)
+Duración estimada: 3-4 horas
+Este es el trabajo de base. Si ya tienes algo de esto, puedes saltearlo.
+1. Prepara tu MacBook (Entorno Local):
+● Homebrew:
+○ Verificación: Abre la Terminal y ejecuta command -v brew. Si ves una ruta como
+/opt/homebrew/bin/brew, ya está instalado.
+○ Instalación (si es necesario): /bin/bash -c "$(curl -fsSL
+https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+● Python con pyenv:
+○ Verificación: command -v pyenv. Si devuelve una ruta, está instalado. Luego,
+ejecuta pyenv versions para ver qué versiones de Python tienes.
+○ Instalación (si es necesario): brew install pyenv
+○ Instalación de Python 3.11 (si no lo tienes): pyenv install 3.11
+○ Configuración global: pyenv global 3.11
+● Node.js con nvm:
+○ Verificación: command -v nvm. Si devuelve una ruta, está instalado. Luego,
+ejecuta nvm ls para ver las versiones de Node que tienes.
+○ Instalación (si es necesario): brew install nvm
+○ Instalación de Node LTS (si no lo tienes): nvm install --lts
+● Visual Studio Code (VSC):
+
+
+--- PAGE 1 ---
+
+○ Verificación: command -v code. Si devuelve una ruta, está instalado.
+○ Verificación de Extensiones: Abre VSC, ve a la pestaña de Extensiones (el
+ícono de los bloques) y busca Python, Pylance y Prettier - Code formatter para ver si
+están instaladas.
+● Git:
+○ Verificación: git --version. Casi seguro que ya está instalado en macOS.
+2. Prepara tu Infraestructura Cloud:
+● Hostinger VPS:
+○ Confirma que puedes acceder por SSH.
+○ Verificación de herramientas en el servidor: Conéctate por SSH y ejecuta los
+siguientes comandos:
+■ git --version
+■ python3 --version
+■ pip3 --version
+○ Instalación (si falta algo): sudo apt-get update && sudo apt-get install git
+python3-pip -y
+● Cloudflare R2 (Tu Almacén de Datos):
+○ Ve a tu cuenta de Cloudflare -> R2 -> "Crear bucket". Nómbralo algo único, ej:
+mi-dashboard-btc-data.
+○ En la página del bucket, ve a "Configuración" y hazlo público: haz clic en
+"Permitir acceso público" y copia la URL pública. Guárdala.
+○ Vuelve a la página principal de R2, a la derecha busca "Administrar tokens de
+API R2" -> "Crear token de API". Dale permisos de "Objeto de lectura y
+escritura". Copia el ID de clave de acceso y la Clave de acceso secreta.
+¡GUÁRDALAS EN UN LUGAR SEGURO, NO LAS PIERDAS!
+● GitHub:
+○ Crea dos repositorios privados: uno llamado btc-dashboard-backend y otro
+btc-dashboard-frontend.
+3. Recolecta tus Llaves (API Keys):
+● Ve a cada uno de estos servicios y busca la sección "API Keys". Genera una para
+cada uno y guárdalas de forma segura junto con las de R2.
+○ Binance: Para datos de mercado.
+○ Glassnode: Para datos on-chain (el plan gratuito es suficiente).
+○ St. Louis FRED: Para datos macro.
+○ Reddit: Crea una "app" de tipo "script" para usar PRAW.
+Fase 1: Construir el Pipeline de Datos (El Backend)
+
+
+--- PAGE 2 ---
+
+Duración estimada: 1 semana
+1. Estructura del Proyecto Backend (en tu Mac):
+● Abre la Terminal, navega a donde guardas tus proyectos y clona tu repo:
+git clone https://github.com/tu-usuario/btc-dashboard-backend.git
+cd btc-dashboard-backend
+● Crea un entorno virtual para Python:
+python3 -m venv venv
+source venv/bin/activate
+● Manejo de Librerías (Mejor Práctica):
+○ Crea un archivo llamado requirements.txt en la raíz del proyecto.
+○ Pega dentro de ese archivo la siguiente lista:
+requests
+pandas
+python-binance
+ccxt
+pydantic
+boto3
+feedparser
+praw
+fredapi
+○ Instalación / Verificación: Ejecuta pip install -r requirements.txt. Este comando es
+inteligente: instalará las librerías que falten y omitirá las que ya estén
+instaladas. Para verificar en cualquier momento, puedes ejecutar pip list.
+● Crea un archivo .gitignore y añade venv/, __pycache__/ y *.json.
+● Crea una carpeta scripts/.
+2. Script de Ingesta #1: Binance (Tu Primer Ladrillo):
+● Dentro de scripts/, crea ingest_binance.py.
+● Prompt para tu IA: "Dame un script de Python que use la librería python-binance
+para obtener los klines diarios de 'BTCUSDT' del último año. El script debe
+guardar los datos en un archivo llamado binance_klines.json."
+● Ejecuta el script en tu Mac: python scripts/ingest_binance.py. Verifica que se cree
+el archivo binance_klines.json.
+3. Script para Subir a R2:
+● Crea un script upload_to_r2.py en la carpeta scripts/.
+● Prompt para tu IA: "Dame un script de Python que use boto3 para subir un
+archivo a un bucket de Cloudflare R2. El script debe tomar el nombre del archivo
+como argumento. Debe configurarse con el endpoint_url, access_key_id y
+
+
+--- PAGE 3 ---
+
+secret_access_key, cargados desde variables de entorno."
+● Importante: No pongas tus claves directamente en el script. Cárgalas desde
+variables de entorno.
+● Prueba subir tu archivo: python scripts/upload_to_r2.py binance_klines.json.
+Verifica en la web de Cloudflare que el archivo esté en tu bucket.
+4. Repite para todas las fuentes:
+● Crea un script de ingesta para cada fuente de datos (ingest_glassnode.py,
+ingest_fred.py, etc.).
+● Cada script debe generar un archivo JSON único (glassnode_sopr.json, etc.).
+● Prueba cada uno localmente.
+5. Despliega los Scripts en tu VPS:
+● Haz tu primer commit:
+git add .
+git commit -m "feat: Creación de scripts de ingesta iniciales"
+git push origin main
+● Conéctate a tu VPS por SSH.
+● Clona el repositorio: git clone
+https://github.com/tu-usuario/btc-dashboard-backend.git.
+● Seguridad: La forma más segura de manejar tus API keys en el VPS es con
+variables de entorno. Edita el archivo ~/.bashrc (nano ~/.bashrc) y añade al final:
+export BINANCE_API_KEY="tu_clave"
+export BINANCE_API_SECRET="tu_secreto"
+export R2_ACCESS_KEY_ID="tu_id"
+# ...y así para todas las claves
+● Recarga la configuración: source ~/.bashrc.
+● Modifica tus scripts para que lean estas variables de entorno en lugar de tener las
+claves escritas.
+6. Orquestación con n8n:
+● Abre tu instancia de n8n. Crea un nuevo workflow.
+● Nodo 1: Cron. Configúralo para que se ejecute una vez al día a la hora que
+quieras (ej: 08:00 ART).
+● Nodo 2: Execute Command. Configúralo para ejecutar tu primer script. El
+comando será algo así:
+cd /ruta/a/tu/repo/btc-dashboard-backend && /usr/bin/python3
+scripts/ingest_binance.py
+● Añade un nodo "Execute Command" para cada script de ingesta. Puedes
+ponerlos en paralelo si no dependen entre sí.
+
+
+--- PAGE 4 ---
+
+● Añade nodos "Execute Command" al final para subir cada JSON generado a R2.
+● Activa el workflow. ¡Tu pipeline de datos está vivo!
+Fase 2: El Cerebro (Motor de Lógica)
+Duración estimada: 4-5 días
+1. Desarrollo del Script de Procesamiento (en tu Mac):
+● Crea process_signals.py en la carpeta scripts/.
+● Este script hará lo siguiente:
+1. Descargará los archivos JSON necesarios de R2 a una carpeta temporal.
+2. Cargará cada JSON en un DataFrame de Pandas.
+3. Calculará los indicadores (ej: EMAs, puntaje RSI).
+4. Aplicará la lógica de ponderación y calculará el Score Total.
+5. Generará el objeto JSON final, como se define en la plantilla
+salida_diaria.json.
+6. Guardará este JSON localmente.
+● Prompt para tu IA: "Basado en este DataFrame de klines de
+Binancepegaunejemplo
+, dame el código de Pandas para calcular la EMA de 50 días."
+● Prompt para tu IA: "Tengo varios puntajes y pesos en un diccionario de Python.
+Dame una función que calcule el Score Total sumando la multiplicación de cada
+puntaje por su peso."
+2. Integración en n8n:
+● Sube process_signals.py a tu repo de GitHub (git push).
+● En tu VPS, actualiza el repo: cd /ruta/a/tu/repo && git pull.
+● En tu workflow de n8n, añade un nodo "Execute Command" después de que
+todos los scripts de ingesta hayan terminado. Este nodo ejecutará
+process_signals.py.
+● Añade un último nodo "Execute Command" que suba el salida_diaria.json a R2.
+Fase 3: La Cara del Proyecto (Frontend)
+Duración estimada: 1.5 semanas
+1. Estructura del Proyecto Frontend (en tu Mac):
+● Navega a tu carpeta de proyectos y clona el otro repo:
+git clone https://github.com/tu-usuario/btc-dashboard-frontend.git
+cd btc-dashboard-frontend
+● Crea el proyecto Next.js:
+
+
+--- PAGE 5 ---
+
+npx create-next-app@latest . (el . lo crea en la carpeta actual). Elige TypeScript y
+Tailwind CSS cuando te pregunte.
+● Limpia el código de ejemplo de la página principal (app/page.tsx).
+2. Conexión de Datos:
+● En tu app/page.tsx, vas a buscar los datos.
+● Prompt para tu IA: "En Next.js 14 con App Router, ¿cómo hago un fetch de datos
+desde una URL en un Server Component para que los datos estén disponibles en
+el renderizado inicial?"
+● La URL que usarás es la URL pública de tu salida_diaria.json en el bucket de R2.
+3. Construcción de Widgets:
+● Crea una carpeta components/.
+● Para cada widget, crea un nuevo archivo (ej: components/DecisionPanel.tsx).
+● Prompt para tu IA: "Crea un componente de React con TypeScript y Tailwind
+CSS que reciba una prop 'decision' (string) y 'score' (number). Debe mostrar la
+decisión con un color de fondo diferente según si es 'COMPRAR' (verde),
+'VENDER' (rojo) o 'NEUTRAL' (gris)."
+● Para los gráficos: Usa la librería TradingView Lightweight Charts.
+● Prompt para tu IA: "Dame un componente de React que integre TradingView
+Lightweight Charts y muestre una serie de datos de klines que le paso como
+prop."
+● Construye tu dashboard componente a componente.
+4. Despliegue con Vercel:
+● Haz commit y sube tu código a GitHub.
+● Ve a Vercel, inicia sesión con tu cuenta de GitHub.
+● "Add New... Project" -> Importa tu repositorio btc-dashboard-frontend.
+● Vercel detectará que es Next.js y lo configurará todo. Haz clic en "Deploy".
+● ¡Felicidades, tu dashboard está online!
+5. Auto-actualización Diaria:
+● El sitio es estático, se genera en el momento del despliegue. Para que muestre los
+datos nuevos cada día, necesitas que Vercel reconstruya el sitio.
+● En Vercel, ve a la configuración de tu proyecto -> "Git" -> "Deploy Hooks". Crea
+un nuevo hook. Copia la URL.
+● En tu workflow de n8n, al final de todo, añade un nodo "HTTP Request" que haga
+una petición POST a esa URL del deploy hook.
+● Ahora, cada vez que tu pipeline de datos termine, automáticamente le dirá a
+Vercel que reconstruya el sitio con los datos frescos.
+
+
+--- PAGE 6 ---
+
+Fase 4: El Guardián (Alertas y Monitoreo)
+Duración estimada: 2-3 días
+1. Alertas de Mercado en n8n:
+● Crea un nuevo workflow en n8n.
+● Nodo 1: Cron. Configúralo para ejecutarse cada 15 minutos.
+● Nodo 2: HTTP Request. Llama a la API de Coinglass para obtener el funding rate
+actual.
+● Nodo 3: IF. Comprueba si el valor del funding es mayor a un umbral (ej: 0.05).
+● Nodo 4: Telegram. Configura un bot de Telegram (es muy fácil, busca
+"BotFather" en Telegram) y usa el nodo de Telegram en n8n para enviarte un
+mensaje si la condición del IF se cumple.
+2. Alertas de Fallo del Sistema:
+● En tu workflow principal (el que corre una vez al día), busca en la configuración
+de cada nodo la pestaña "Settings" y activa "Continue on Fail".
+● Añade un nodo IF al final que verifique si el workflow tuvo algún error.
+● Si hubo un error, envía una notificación a Telegram diciendo "¡El pipeline diario ha
+fallado!".
+Usando Code Assist de Gemini
+Aquí tienes la guía detallada y las recomendaciones para integrar Gemini Code Assist
+en tu flujo de trabajo, alineada con el plan que ya tenemos.
+1. Configuración de Gemini Code Assist en VS Code
+Gemini Code Assist se integra directamente en tu editor de código como una
+extensión.
+1. Abre Visual Studio Code en tu MacBook.
+2. Ve a la pestaña de Extensiones en la barra lateral izquierda (el ícono de los
+cuatro cuadrados).
+3. Busca "Google - Gemini". Verás la extensión oficial de Google.
+4. Haz clic en "Instalar".
+5. Una vez instalada, verás un nuevo ícono de Gemini en la barra lateral. Haz clic
+en él y sigue las instrucciones para iniciar sesión con tu cuenta de Google.
+
+
+--- PAGE 7 ---
+
+6. ¡Listo! Ahora tienes autocompletado inteligente, un chat para hacer preguntas
+y la capacidad de generar código directamente en tus archivos.
+2. Estrategia de Prompts por Fase del Proyecto
+La clave para usar la IA de manera efectiva es hacer preguntas precisas y darle
+contexto. Aquí te muestro cómo aplicarlo a cada fase de tu "Guía de Ejecución".
+Fase 1: Construir el Pipeline de Datos (Backend)
+En esta fase, usarás Gemini para generar los scripts de Python.
+● Para los scripts de ingesta: En lugar de solo copiar el prompt de la
+guía, puedes ser más específico. Abre un archivo ingest_binance.py
+y en el chat de Gemini, pide:
+*"Dame un script completo de Python que use la librería
+python-binance. Debe hacer lo siguiente:
+1. Leer las claves API 'BINANCE_API_KEY' y
+'BINANCE_API_SECRET' desde variables de entorno.
+2. Conectarse al cliente de Binance.
+3. Obtener los klines diarios para 'BTCUSDT' del último año.
+4. Guardar los datos en un archivo llamado binance_klines.json.
+5. Incluir manejo de errores básicos con try/except."*
+● Para el script de subida a R2:
+"Escribe una función en Python que use boto3. Debe tomar un nombre de
+archivo local y un nombre de objeto como argumentos. La función debe subir
+el archivo a un bucket de Cloudflare R2. Configura el cliente de boto3 leyendo
+las credenciales y el endpoint_url desde variables de entorno."
+● Para depurar: Si un script falla, puedes pegar el código y el error en el chat:
+"Estoy ejecutando este script [pega el código] y me da este error [pega el error
+completo]. ¿Qué podría estar mal?"
+Fase 2: El Cerebro (Motor de Lógica)
+Aquí es donde Gemini brilla para procesar datos con Pandas.
+● Para cálculos de indicadores:
+"Tengo un DataFrame de Pandas cargado desde un JSON de klines de Binance.
+La estructura es [...]. Dame el código para calcular la EMA de 50 días y el RSI
+de 14 días y añadirlos como nuevas columnas al DataFrame."
+● Para la lógica de decisión:
+
+
+--- PAGE 8 ---
+
+"Escribe una función de Python que reciba un diccionario con señales como
+este: {'rsi_score': 1, 'ema_score': -1, ...} y otro diccionario con pesos como este:
+{'rsi_score': 2, 'ema_score': 3, ...}. La función debe calcular y devolver el score
+total ponderado."
+Fase 3: La Cara del Proyecto (Frontend)
+Gemini es extremadamente útil para generar componentes de React y el código
+"boilerplate".
+● Para crear componentes: Abre un archivo components/KpiCard.tsx y pide:
+"Crea un componente de React funcional con TypeScript y Tailwind CSS
+llamado KpiCard. Debe aceptar las siguientes props: titulo (string), valor (string
+o number) y cambio24h (number). El cambio24h debe mostrarse en color verde
+si es positivo y rojo si es negativo."
+● Para conectar los datos:
+"En un Server Component de Next.js 14 (app/page.tsx), muéstrame el código
+asíncrono para hacer un fetch a la URL de mi salida_diaria.json. Luego, pasa los
+datos obtenidos como props a un componente cliente llamado Dashboard."
+● Para los gráficos:
+"Dame el código para un componente de React que use la librería
+lightweight-charts-react-wrapper. Debe inicializar un gráfico y mostrar una
+serie de datos de velas que le pasaré como prop. Asegúrate de que el
+componente maneje correctamente el redimensionamiento de la ventana."
+3. Mejores Prácticas para Maximizar la Ayuda
+1. Sé Específico y Proporciona Contexto: No digas "haz un gráfico". Di "usa la
+librería X para hacer un gráfico de tipo Y con estos datos Z". Cuanto más
+contexto le des, mejor será el código.
+2. Usa el Chat para Conversar y Refinar: El primer código que te dé puede no
+ser perfecto. Responde con "Ok, ahora añade manejo de estado de carga
+(loading)" o "Puedes refactorizar esto para que sea más legible?".
+3. Genera, No Copies Ciegamente: Tú eres el arquitecto, Gemini es el albañil.
+Revisa siempre el código que genera. Asegúrate de entender lo que hace antes
+de integrarlo. Es una herramienta de aprendizaje fantástica.
+4. Úsalo para Documentar: Una vez que un script fu
+(Content truncated due to size limit. Use page ranges or line ranges to read remaining content)

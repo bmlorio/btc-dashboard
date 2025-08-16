@@ -1,0 +1,15 @@
+requests
+pandas
+python-binance
+ccxt
+pydantic
+boto3
+feedparser
+praw
+fredapi
+yfinance
+flask
+flask-cors
+python-dotenv
+schedule
+

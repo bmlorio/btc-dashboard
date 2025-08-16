@@ -1,0 +1,286 @@
+Índice del Plan Maestro
+1. Visión y Alcance del Proyecto
+2. Arquitectura de la Solución y Stack Tecnológico
+3. Inventario de Fuentes de Datos y APIs
+4. Diseño del Dashboard: UI, Widgets y KPIs
+5. Plan de Desarrollo e Implementación por Fases
+6. Modelo de Decisión Automatizado y Gestión de Riesgo
+7. Entregables Finales y Plantillas
+1. Visión y Alcance del Proyecto
+Visión: Crear un sistema de soporte a la decisión (DSS) para el trading de Bitcoin,
+que funcione de manera autónoma, consolidando análisis multi-dimensional en un
+único tablero web. El sistema debe entregar una recomendación clara (Comprar /
+Vender / No Operar) y un informe detallado cada día a las 09:00 ART.
+Alcance del Proyecto:
+● Producto Principal: Un tablero de control web, estático, de bajo mantenimiento y
+alta disponibilidad.
+● Backend/Pipeline de Datos: Un sistema de ingesta, procesamiento y
+almacenamiento de datos totalmente automatizado y orquestado.
+● Motor de Decisión: Un conjunto de scripts que aplican una lógica predefinida
+para generar señales y la decisión diaria.
+● Sistema de Alertas: Notificaciones en tiempo real (vía Telegram/Discord)
+basadas en condiciones críticas del mercado.
+● NO incluido en el MVP: Ejecución de trades, gestión de portafolio en vivo,
+autenticación de usuarios.
+2. Arquitectura de la Solución y Stack Tecnológico
+Esta arquitectura está optimizada para bajo costo, escalabilidad y evitar el vendor
+lock-in.
+Flujo de Datos:
+APIs Externas → Ingesta (Python) → Orquestación (n8n) → Almacenamiento (S3-compatible)
+→ Lógica de Decisión (Python) → Frontend (React/Next.js)
+Componente Tecnología Propuesta Razón / Costo
+Orquestación n8n (self-hosted) Potente para flujos de trabajo
+(CRON, triggers). Se puede
+hostear en un VPS económico
+
+
+--- PAGE 1 ---
+
+(ej: Hetzner, Oracle Cloud
+Free Tier) para control total.
+Alternativa: n8n Cloud (plan
+gratuito generoso). Costo:
+~$5-10/mes (VPS) o Gratis.
+Scripts/Lógica Python 3.10+ Ecosistema maduro para data
+(Pandas, Pydantic), APIs
+(Requests, CCXT) y cloud
+(Boto3). Costo: Gratis.
+Almacenamiento Cloudflare R2 / Backblaze Alternativas a AWS S3 con
+B2 costos de transferencia
+(egress) nulos o muy bajos.
+Ideal para servir archivos
+JSON al frontend
+globalmente. Costo:
+Prácticamente gratis para el
+volumen de este proyecto.
+Frontend Next.js (Static Export) Genera un sitio 100% estático
+(HTML/CSS/JS) que es rápido,
+seguro y barato de hostear.
+Excelente para SEO y
+performance. Costo: Gratis.
+Hosting Frontend Vercel / Cloudflare Pages Plataformas optimizadas para
+Next.js con CDN global,
+despliegue continuo desde
+Git y planes gratuitos muy
+generosos. Costo: Gratis.
+Alertas Telegram / Discord (vía n8n) Integraciones nativas en n8n,
+fáciles de configurar y sin
+costo. Costo: Gratis.
+Backtesting Python (local) Usar los datos históricos
+almacenados en formato
+Parquet para simular la
+estrategia sin costo de
+herramientas externas. Costo:
+Gratis.
+3. Inventario de Fuentes de Datos y APIs
+La selección se prioriza por la disponibilidad de una API robusta, gratuita y con límites
+
+
+--- PAGE 2 ---
+
+de rate razonables.
+Dimensión Fuente/API Endpoint Clave Límites (Plan Automatizació
+/ Uso Gratuito) n
+Técnico Binance API GET 1200 Excelente
+/api/v3/klines requests/minuto (python-binanc
+(Velas), GET por IP. Muy e, CCXT).
+/fapi/v1/openInte generoso.
+rest (OI)
+Derivados Coinglass API GET 10 req/min, Excelente (API
+/api/v3/funding 10k/mes. RESTful).
+(Funding), GET Suficiente para
+/api/v3/liquidatio updates cada
+n/map (Liqs) hora.
+On-Chain Glassnode API GET Datos con Excelente (API
+(Tier 1) /v1/metrics/... latencia de 24h. RESTful).
+(SOPR, MVRV, Suficiente para
+Flujos) análisis diario.
+Macro St. Louis FRED GET 120 Excelente
+API /fred/series/obs requests/minuto (Librería fredapi
+ervations (DXY, . Más que en Python).
+Tasas) suficiente.
+Macro yfinance yf.download() No oficial, pero Excelente
+(Librería) (SPY, QQQ, confiable para (Librería
+GLD) datos de cierre Python).
+diario.
+Noticias RSS Feeds Parseo de XML Depende del Excelente
+(varios) de Coindesk, sitio, (Librería
+The Block, etc. usualmente no feedparser en
+hay límites Python).
+estrictos.
+Redes PRAW (Reddit subreddit.hot(), Límites Excelente
+API) subreddit.searc generosos para (Librería
+h() uso no Python).
+comercial.
+4. Diseño del Dashboard: UI, Widgets y KPIs
+El diseño debe ser denso en información pero claro, priorizando la "escaneabilidad"
+
+
+--- PAGE 3 ---
+
+para la toma de decisiones a las 09:00 ART.
+Layout: Un grid de 3 columnas.
+● Columna Izquierda: Contexto (Macro y Narrativa).
+● Columna Central: Acción del Precio (Técnico).
+● Columna Derecha: Flujos de Mercado (Derivados y On-Chain).
+Columna Widget KPIs / Visualización Frecuencia de
+Refresh
+Izquierda Macro Snapshot DXY, S&P500 15 min
+Futures, Oro
+(mini-gráficos de
+línea 24h).
+Calendario Próximos 3 eventos Diario
+Económico con nivel de impacto.
+Feed de Narrativas Top 5 posts de 30 min
+r/Bitcoin + titulares de
+RSS curados.
+Central Gráfico Principal Gráfico de 1 min
+BTC/USD TradingView
+Lightweight (4H) con
+EMAs 21/50/200, S/R.
+Indicadores de Gauges (medidores) 15 min
+Momentum para RSI y MACD en
+TF 1D y 4H.
+Volatilidad Gráfico de línea 1 hora
+simple para ATR
+(14D) y HV (30D).
+Perfil de Volumen Barras horizontales 4 horas
+(VPVR) sobre el gráfico
+principal indicando
+zonas de liquidez.
+Derecha Métricas de Tabla con Funding 15 min
+Derivados Rate, OI Agregado,
+P/C Ratio (con
+colores R/V).
+Mapa de Gráfico de barras 1 hora
+
+
+--- PAGE 4 ---
+
+Liquidaciones mostrando pools de
+liquidez
+(largos/cortos).
+Métricas On-Chain Tabla con SOPR, Diario
+Clave MVRV Z-Score, Flujo
+Neto a Exchanges
+(dato D-1).
+Header Panel de Decisión [COMPRAR / 1 min (Precio), Diario
+VENDER / (Decisión)
+NEUTRAL] + Precio
+actual + Cambio 24h.
+5. Plan de Desarrollo e Implementación por Fases
+Este es un roadmap de desarrollo de software, enfocado en entregar valor
+incrementalmente.
+● Fase 1: Pipeline de Datos (El Backend Core) - (Duración: 3 semanas)
+1. Configurar Infraestructura: Crear el bucket en R2/B2, instalar n8n en un
+VPS.
+2. Desarrollar Scripts de Ingesta: Crear un script de Python por cada fuente
+de datos (binance_ingest.py, glassnode_ingest.py, etc.). Cada script debe
+obtener los datos y guardarlos como JSON/Parquet en el bucket.
+3. Crear Workflows de Orquestación: Diseñar el workflow principal en n8n que
+se ejecuta vía CRON (ej: cada hora) y llama a todos los scripts de ingesta.
+○ Entregable de Fase 1: Un bucket S3 que se puebla de forma confiable y
+automática con todos los datos crudos necesarios.
+● Fase 2: Motor de Lógica y Señales (El Cerebro) - (Duración: 2 semanas)
+1. Desarrollar Script de Procesamiento: Crear un script process_signals.py
+que lea los datos crudos del bucket.
+2. Implementar Lógica: Calcular indicadores derivados (ej: interpretar el valor
+del RSI), normalizar datos y llenar la "Tabla de Señales".
+3. Implementar Motor de Decisión: Aplicar el modelo de decisión (ver sección
+6) para generar el output final (salida_diaria.json) con la recomendación del
+día.
+4. Integrar en n8n: Añadir este script al final del workflow principal.
+○ Entregable de Fase 2: El archivo salida_diaria.json se genera y actualiza
+automáticamente en el bucket.
+● Fase 3: Desarrollo del Frontend (La Interfaz) - (Duración: 4 semanas)
+1. Setup del Proyecto: Crear el proyecto Next.js y configurarlo para
+
+
+--- PAGE 5 ---
+
+exportación estática.
+2. Construir Componentes de UI: Desarrollar componentes React para cada
+widget (gráficos, tablas, gauges).
+3. Conectar Datos: Hacer que el frontend haga fetch del archivo
+salida_diaria.json y otros archivos de datos desde el bucket público de R2/B2.
+4. Desplegar: Configurar el despliegue automático en Vercel/Cloudflare Pages.
+○ Entregable de Fase 3: Una URL pública con el dashboard funcional y
+auto-actualizable.
+● Fase 4: Sistema de Alertas y Monitoreo - (Duración: 1 semana)
+1. Crear Workflows de Alertas: Diseñar workflows específicos en n8n que se
+ejecuten a alta frecuencia (ej: cada 5 min) para chequear condiciones críticas
+(ej: IF Funding > 0.05% THEN Send Telegram Alert).
+2. Implementar Monitoreo del Pipeline: Añadir manejo de errores en el
+workflow principal para que notifique si una API falla.
+○ Entregable de Fase 4: Alertas proactivas y monitoreo de la salud del sistema.
+6. Modelo de Decisión Automatizado y Gestión de Riesgo
+El "cerebro" del sistema. La lógica se implementa en el script process_signals.py.
+1. Ponderación de Señales:
+Se asigna un puntaje a cada señal (-2 Bajista Fuerte, -1 Bajista, 0 Neutral, +1 Alcista, +2 Alcista
+Fuerte).
+Indicador Condición para +1 Condición para -1 Peso
+(Alcista) (Bajista)
+Estructura (1D) Cierre > EMA50 Cierre < EMA50 3 (Alto)
+RSI (1D) > 50 y subiendo < 50 y bajando 2 (Medio)
+Funding Rate Ligeramente positivo Negativo o muy 2 (Medio)
+positivo
+Flujo Neto Exch. Salida neta de BTC Entrada neta de BTC 3 (Alto)
+SOPR (a-SOPR) Rebotando desde 1 Rompiendo por 2 (Medio)
+debajo de 1
+Contexto Macro DXY débil, S&P fuerte DXY fuerte, S&P débil 1 (Bajo)
+2. Cálculo del Score Final:
+Score Total = Σ (Puntaje de Señal * Peso)
+
+
+--- PAGE 6 ---
+
+3. Reglas de Decisión:
+● SI Score Total >= 5 ENTONCES Decisión = COMPRAR
+● SI Score Total <= -5 ENTONCES Decisión = VENDER
+● EN OTRO CASO Decisión = NEUTRAL
+4. Parámetros de Riesgo (salida del sistema para ejecución manual):
+● Stop Loss: Se calcula usando el ATR (14). Para un largo, Entrada - 1.5 * ATR.
+● Take Profit: Basado en niveles de S/R o extensiones de Fibonacci, buscando un
+R:R mínimo de 1.5.
+● Tamaño de Posición: (Capital Total * Riesgo por Trade) / (Distancia al Stop Loss).
+(Ej: (10000 * 0.005) / (Precio - SL)).
+7. Entregables Finales y Plantillas
+● Código Fuente: Repositorio en GitHub con el frontend Next.js y los scripts de
+Python.
+● Workflows de n8n: Archivos JSON exportables de los workflows de orquestación
+y alertas.
+● URL del Dashboard: El enlace público al tablero desplegado.
+● Documentación: Un README.md detallando cómo configurar y mantener el
+sistema.
+Plantilla de Salida: salida_diaria.json
+{
+"timestamp_utc": "2025-08-15T12:00:00Z",
+"decision_del_dia": "COMPRAR",
+"score_total": 6,
+"resumen_ejecutivo": "Convergencia alcista con estructura diaria, flujos de salida de
+exchanges y un SOPR rebotando en 1. El contexto macro es neutral. Se favorecen
+posiciones largas.",
+"tabla_de_senales": [
+{ "nombre": "Estructura 1D", "valor": "Cierre > EMA50", "puntaje": 1, "peso": 3 },
+{ "nombre": "RSI 1D", "valor": 58, "puntaje": 1, "peso": 2 },
+{ "nombre": "Funding Rate", "valor": 0.01, "puntaje": 0, "peso": 2 },
+{ "nombre": "Flujo Neto Exchanges", "valor": -1500, "puntaje": 1, "peso": 3 },
+{ "nombre": "a-SOPR", "valor": 1.02, "puntaje": 1, "peso": 2 },
+{ "nombre": "Contexto Macro", "valor": "Neutral", "puntaje": 0, "peso": 1 }
+],
+"plan_de_trade_sugerido": {
+"direccion": "Largo",
+
+
+--- PAGE 7 ---
+
+"entrada_sugerida": 68500,
+"stop_loss_calculado": 67100,
+"take_profit_1": 70500,
+"riesgo_beneficio": 1.57
+}
+}
+
+
+--- PAGE 8 ---
+
